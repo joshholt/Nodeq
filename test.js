@@ -1,14 +1,16 @@
 NRDEBUG = true;
 process.mixin(GLOBAL, require('ntest'));
 var redisclient = require('./lib/redisclient');
-var queue = require('./node_resque').create();
+var queue = require('./node_resque').create(0,"resque");
 var assert = require('assert');
 var redis = new redisclient.Client();
 
 // Used in tests
-var nodeq = "resque:queue:nodeq";
-var nodeqJob = {message: "This is test queue item(1)", actor: "Mailer"};
-var nodeqJob1 = {message: "This is test queue item(2)", actor: "Mailer"};
+var nodeq = "nodeq";
+var nodeqJob = {"class": "Demo::Job", args:[{message:"This is test queue item(1)"}]};
+var nodeqJob1 = {"class": "Demo::Job", args:[{message:"This is test queue item(2)"}]};
+// var nodeqJob = {"class": "Demo::Job", args:[{}]};
+// var nodeqJob1 = {"class": "Demo::Job", args:[{}]};
 
 redis.flushdb().wait();
 
@@ -56,5 +58,7 @@ describe("When Manipulating a Queue")
   it("should have a size of zero after popping the last item off of the queue",function() {
     assert.equal(0,queue.size(nodeq).wait());
   })
+  queue.push(nodeq,nodeqJob).wait();
+  queue.push(nodeq,nodeqJob1).wait();
   
 process.exit();

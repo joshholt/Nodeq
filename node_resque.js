@@ -3,6 +3,9 @@
   Author = Josh Holt
   License = MIT
 */
+
+/*globals NRDEBUG NodeResque*/
+
 NRDEBUG = false;
 var sys = require('sys');
 var tcp = require('tcp'); 
@@ -12,20 +15,21 @@ var client = new redis.Client();
 
 exports.create = function(db, ns) {
   return new NodeResque(db, ns);
-}
+};
 
 var NodeResque = exports.NodeResque = function(dbNumber, nameSpace) {
   this.dbNumber = dbNumber || 0;
-  this.nameSpace = nameSpace || "NRQueue:";
+  this.ns = nameSpace || "NRQueue:";
   this.callbacks = [];
 };
 sys.inherits(NodeResque, process.EventEmitter);
 
 NodeResque.prototype.push = function(queue,item) {
   var encodedItem = JSON.stringify(item), promise = new process.Promise();
+  var ns = this.ns + ":queue:";
   this.emit('push', queue, item);
   this.watch_queue(queue).addCallback(function(ret){
-    client.rpush(queue,encodedItem).addCallback(function(ret){
+    client.rpush(ns+queue,encodedItem).addCallback(function(ret){
         promise.emitSuccess(ret);
     }).addErrback(function(ret){
       promise.emitError(ret);
@@ -39,8 +43,9 @@ NodeResque.prototype.push = function(queue,item) {
 
 NodeResque.prototype.pop = function(queue) {
   var promise = new process.Promise();
+  var ns = this.ns + ":queue:";
   this.emit('pop',queue);
-  client.lpop(queue).addCallback(function(ret) {
+  client.lpop(ns+queue).addCallback(function(ret) {
     promise.emitSuccess(ret);
   }).addErrback(function(e) {
     promise.emitError(e);
@@ -50,8 +55,9 @@ NodeResque.prototype.pop = function(queue) {
 
 NodeResque.prototype.size = function(queue) {
   var promise = new process.Promise();
+  var ns = this.ns + ":queue:";
   this.emit('size',queue);
-  client.llen(queue).addCallback(function(ret) {
+  client.llen(ns+queue).addCallback(function(ret) {
     promise.emitSuccess(ret);
   }).addErrback(function(e) {
     promise.emitError(e);
@@ -73,17 +79,18 @@ NodeResque.prototype.peek = function(queue, start, count) {
 
 NodeResque.prototype.list_range = function(key, start, count) {
   var promise = new process.Promise();
+  var ns = this.ns + ":queue:";
   this.emit('list_range',key,start,count);
   start = start || 0; count = count || 1;
   if (count === 1) {
-   client.lindex(key,0).addCallback(function(ret) {
+   client.lindex(ns+key,0).addCallback(function(ret) {
      // TODO: [JH2] use JSON.parse() here to return a real object...
      promise.emitSuccess(ret);
    }).addErrback(function(e) {
      promise.emitError(e);
    });
   }else{
-    client.lrange(key,start,start+count-1).addCallback(function(ret) {
+    client.lrange(ns+key,start,start+count-1).addCallback(function(ret) {
       // TODO: [JH2] forEach here and then JSON.parse() return an array
       promise.emitSuccess(ret);
     }).addErrback(function(e) {
@@ -94,7 +101,14 @@ NodeResque.prototype.list_range = function(key, start, count) {
 };
 
 NodeResque.prototype.queues = function() {
-  
+  var promise = new process.Promise();
+  this.emit('queues');
+  client.smembers(this.ns+':queues').addCallback(function(ret) {
+    promise.emitSuccess(ret);
+  }).addErrback(function(e) {
+    promise.emitError(e);
+  });
+  return promise;
 };
 
 NodeResque.prototype.remove_queue = function(queue) {
@@ -105,7 +119,7 @@ NodeResque.prototype.watch_queue = function(queue) {
   var that = this,promise = new process.Promise();
   this.emit('watch_queue', queue);
   // The actual redis call...
-  client.sadd("resque:queues",queue).addCallback(function(ret){
+  client.sadd(this.ns+":queues",queue).addCallback(function(ret){
     if (ret === 0 || ret === 1) {
       promise.emitSuccess(true);
     }else{

@@ -61,9 +61,9 @@ NodeResque.prototype.size = function(queue) {
 
 NodeResque.prototype.peek = function(queue, start, count) {
   var promise = new process.Promise();
-  this.emit('peek',key,start,count);
+  this.emit('peek',queue,start,count);
   start = start || 0; count = count || 1;
-  this.list_range(key,start,count).addCallback(function(ret) {
+  this.list_range(queue,start,count).addCallback(function(ret) {
     promise.emitSuccess(ret);
   }).addErrback(function(e) {
     promise.emitError(e);

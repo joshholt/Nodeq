@@ -21,8 +21,14 @@ describe("When Manipulating a Queue")
   it("should allow jobs to be pushed onto the queue", function(){
     assert.equal(true,queue.push(nodeq,nodeqJob).wait());
   })
+  it("should allow range peeking",function() {
+    assert.equal(JSON.stringify(nodeqJob),queue.peek(nodeq,0,-1).wait()); 
+  })
   it("should have one item after pushing job onto queue",function() {
     assert.equal(1,queue.size(nodeq).wait());
+  })
+  it("should allow range fetching",function() {
+    assert.equal(JSON.stringify(nodeqJob),queue.list_range(nodeq,0,-1).wait()); 
   })
   it("should allow jobs to be popped off of the queue",function() {
     assert.equal(JSON.stringify(nodeqJob),queue.pop(nodeq).wait());

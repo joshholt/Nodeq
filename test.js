@@ -1,19 +1,29 @@
+// ..........................................................
+// TEST SETUP
+// 
 NRDEBUG = true;
 process.mixin(GLOBAL, require('ntest'));
-var redisclient = require('./lib/redisclient');
-var queue = require('./node_resque').create(0,"resque");
-var assert = require('assert');
-var redis = new redisclient.Client();
+var sys = require('sys'),
+    redisclient = require('./lib/redisclient'),
+    queue = require('./node_resque').create(0,"resque"),
+    assert = require('assert'),
+    redis = new redisclient.Client();
 
-// Used in tests
-var nodeq = "nodeq";
-var nodeqJob = {"class": "Demo::Job", args:[{message:"This is test queue item(1)"}]};
-var nodeqJob1 = {"class": "Demo::Job", args:[{message:"This is test queue item(2)"}]};
-// var nodeqJob = {"class": "Demo::Job", args:[{}]};
-// var nodeqJob1 = {"class": "Demo::Job", args:[{}]};
+// ..........................................................
+// STUFF THAT SHOULD BE IN SETUP/TEARDOWN
+// 
+var nodeq = "nodeq",
+    nodeqJob = {"class": "Demo::Job", 
+                args:[{message:"This is test queue item(1)"}]},
+    nodeqJob1 = {"class": "Demo::Job", 
+                 args:[{message:"This is test queue item(2)"}]};
+//Clears out the DB.
+//redis.flushdb().wait();
 
-redis.flushdb().wait();
 
+// ..........................................................
+// QUEUE MANIPULATION
+// 
 describe("When Manipulating a Queue")
   it("should start watching the queue for jobs",function(){
     assert.equal(true,queue.watch_queue(nodeq).wait())
@@ -58,7 +68,22 @@ describe("When Manipulating a Queue")
   it("should have a size of zero after popping the last item off of the queue",function() {
     assert.equal(0,queue.size(nodeq).wait());
   })
-  queue.push(nodeq,nodeqJob).wait();
-  queue.push(nodeq,nodeqJob1).wait();
-  
+
+// ..........................................................
+// QUEUE METADATA
+// 
+describe("When asking for the metadata of a Queue")
+  it("should provide and array of keys", function() {
+   assert.equal(true,_.isArray(queue.keys().wait()));
+  })
+
+// ..........................................................
+// JUST TO WATCH THE WORKER WORK
+// 
+queue.push(nodeq,nodeqJob).wait();
+queue.push(nodeq,nodeqJob1).wait();
+
+// ..........................................................
+// ENSURES THAT WE EXIT
+// 
 process.exit();
